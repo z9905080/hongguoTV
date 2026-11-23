@@ -15,6 +15,8 @@ class PlaybackDeviceRegistrationException(cause: Throwable? = null) :
 
 /** Anonymous playback identity. Register once, then keep the same identity across repositories. */
 class PlaybackDeviceSession(
+    /** 注册后的设备激活；默认不发请求，仅线上共享会话启用。 */
+    private val activate: (OkHttpClient, Map<String, String>) -> Unit = { _, _ -> },
     private val register: (OkHttpClient) -> DeviceRegister.Registered? = { http ->
         val body = DeviceRegister.payload(VendorConstants.device)
         val request = Request.Builder().url(DeviceRegister.url())
@@ -33,7 +35,7 @@ class PlaybackDeviceSession(
     }
 ) {
     companion object {
-        val shared = PlaybackDeviceSession()
+        val shared = PlaybackDeviceSession(activate = DeviceRegister::activate)
         private const val EMPTY_MODEL_PREFETCH_PAUSE_MILLIS = 5_000L
     }
 
@@ -94,7 +96,7 @@ class PlaybackDeviceSession(
             return it
         }
         if (Thread.currentThread().isInterrupted) throw InterruptedIOException("播放请求已取消")
-        return toProfile(registerDevice(http)).also { ready = it }
+        return activated(http, toProfile(registerDevice(http))).also { ready = it }
     }
 
     internal fun shouldDeferPlaybackPrefetch(now: Long): Boolean =
@@ -127,8 +129,18 @@ class PlaybackDeviceSession(
             }
         if (!validDevice(device)) return false
         cdid = UUID.randomUUID().toString()
-        ready = toProfile(device)
+        ready = activated(http, toProfile(device))
         return true
+    }
+
+    // 官方 App 注册后会激活设备；激活失败不影响后续请求，也不占用整段播放期限。
+    private fun activated(http: OkHttpClient, profile: Profile): Profile {
+        runCatching {
+            RequestScope.withDeadline(System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(1)) {
+                activate(http, profile.values)
+            }
+        }
+        return profile
     }
 
     private fun registerDevice(http: OkHttpClient): DeviceRegister.Registered {
