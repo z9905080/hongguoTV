@@ -204,20 +204,22 @@ object DeviceRegister {
     fun url() = HOST + PATH + QUERY
 
     /**
-     * 设备激活（`GET /service/2/app_alert_check/`）：官方 App 在注册后用新身份请求一次。
-     * 域名与旧注册路径 [DeviceRegistrar] 一致；[values] 须已含注册得到的 `device_id` / `iid`。
+     * 设备激活（`GET /service/2/app_alert_check/`）：注册后用新身份请求一次，上游网关才把该
+     * `device_id` 视为可用于播放模型请求。请求形态参照 lvguo-tv 2.0.7：与注册同域名，不带签名头。
      */
-    internal fun activation(values: Map<String, String>, cookie: String, signer: Signer = Signer(device = values)): okhttp3.Request {
-        val signed = signer.sign("https://ichannel.snssdk.com/service/2/app_alert_check/", values)
-        val request = okhttp3.Request.Builder().url(signed.url)
-        signed.headers.forEach { (key, value) -> request.header(key, value) }
-        if (cookie.isNotEmpty()) request.header("Cookie", cookie)
-        return request.build()
-    }
+    internal fun activation(values: Map<String, String>, now: Long = System.currentTimeMillis()): okhttp3.Request =
+        okhttp3.Request.Builder()
+            .url(
+                "$HOST/service/2/app_alert_check/?aid=8662&app_name=novelread&channel=update_64" +
+                    "&device_id=${values.getValue("device_id")}&iid=${values.getValue("iid")}" +
+                    "&device_platform=android&os=android&version_code=73932&version_name=7.3.9.32&_rticket=$now"
+            )
+            .header("User-Agent", VendorConstants.APP_UA)
+            .build()
 
-    fun activate(http: okhttp3.OkHttpClient, values: Map<String, String>, cookie: String) {
+    fun activate(http: okhttp3.OkHttpClient, values: Map<String, String>) {
         val transport = http.newBuilder().cookieJar(okhttp3.CookieJar.NO_COOKIES).build()
-        RequestScope.execute(transport.newCall(activation(values, cookie))) { it.body?.bytes() }
+        RequestScope.execute(transport.newCall(activation(values))) { it.body?.bytes() }
     }
 
     /**

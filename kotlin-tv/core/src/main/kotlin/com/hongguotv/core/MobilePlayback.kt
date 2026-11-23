@@ -32,12 +32,16 @@ internal object MobilePlayback {
     }
 
     private fun query(device: Map<String, String>) =
-        linkedMapOf("aid" to "8662", "app_name" to "novelread",
+        linkedMapOf("device_platform" to "android", "os" to "android", "ssmix" to "a",
+            "cdid" to device.getValue("cdid"), "channel" to "vivo_8662_64",
+            "aid" to "8662", "app_name" to "novelread",
             "version_code" to "74332", "version_name" to "7.4.3.32",
-            "channel" to "vivo_8662_64", "device_platform" to "android",
-            "device_type" to "PGT-AN10", "os_version" to "12", "update_version_code" to "74332",
-            "iid" to device.getValue("iid"), "cdid" to device.getValue("cdid"),
-            "device_id" to device.getValue("device_id"))
+            "manifest_version_code" to "74332", "update_version_code" to "74332",
+            "resolution" to "1920*1080", "dpi" to "280",
+            "device_type" to "PGT-AN10", "device_brand" to "HONOR",
+            "language" to "zh", "os_api" to "31", "os_version" to "12",
+            "ac" to "wifi", "host_abi" to "arm64-v8a",
+            "iid" to device.getValue("iid"), "device_id" to device.getValue("device_id"))
 
     /** The player GET also requires v5, including MD5(empty) rather than a zero body digest.
      * Wire profile verified against hongguo-drama 92df757 and hongguo-tv 9e7386f.
@@ -83,7 +87,7 @@ internal object MobilePlayback {
             .toHttpUrl().newBuilder().apply { query.forEach { (k,v) -> addQueryParameter(k,v) } }.build()
         // TV uses platform decoders, not the official app's bytevc2 decoder.
         // Level 3 can return only bytevc2; level 1 negotiates compatible renditions.
-        val payload = JSONObject("""{"biz_param":{"detail_page_version":0,"device_level":1,"disable_digg_stat":false,"disable_video_relate_book":false,"need_all_video_definition":true,"need_mp4_align":false,"use_os_player":false,"use_server_dns":false,"video_platform":1024},"mixed_video_id_map":{"1004":["$id"]},"dr_scene":"player"}""")
+        val payload = JSONObject("""{"biz_param":{"detail_page_version":0,"device_level":1,"disable_digg_stat":false,"disable_video_relate_book":false,"need_all_video_definition":true,"need_mp4_align":false,"use_os_player":false,"use_server_dns":false,"video_platform":1024},"dr_scene":"player","mixed_video_id_map":{"1004":["$id"]},"video_id":"$id","content_type":1}""")
         val output = ByteArrayOutputStream()
         GZIPOutputStream(output).use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
         val bytes = output.toByteArray()

@@ -33,7 +33,7 @@ class PlaybackDeviceSessionTest {
     fun everyNewIdentityIsActivatedOnceAndActivationFailureIsIgnored() {
         var count = 0
         val activated = mutableListOf<String>()
-        val session = PlaybackDeviceSession(activate = { _, values, _ ->
+        val session = PlaybackDeviceSession(activate = { _, values ->
             activated += values.getValue("device_id")
             throw IOException("activation unavailable")
         }) { DeviceRegister.Registered((333 + ++count).toString(), "444") }
@@ -46,15 +46,14 @@ class PlaybackDeviceSessionTest {
 
     @Test
     fun activationRequestCarriesTheRegisteredIdentity() {
-        val request = DeviceRegister.activation(
-            VendorConstants.device + mapOf("device_id" to "333", "iid" to "444", "cdid" to "c"), "install_id=444")
+        val request = DeviceRegister.activation(mapOf("device_id" to "333", "iid" to "444"), now = 5L)
         assertEquals("GET", request.method)
-        assertEquals("ichannel.snssdk.com", request.url.host)
+        assertEquals("log5-applog-lf.fqnovel.com", request.url.host)
         assertEquals("/service/2/app_alert_check/", request.url.encodedPath)
         assertEquals("333", request.url.queryParameter("device_id"))
         assertEquals("444", request.url.queryParameter("iid"))
-        assertEquals("install_id=444", request.header("Cookie"))
-        assertNotNull(request.header("x-gorgon"))
+        assertEquals("5", request.url.queryParameter("_rticket"))
+        assertNull(request.header("x-gorgon"))
     }
 
     @Test

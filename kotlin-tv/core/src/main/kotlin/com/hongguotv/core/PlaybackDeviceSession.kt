@@ -16,7 +16,7 @@ class PlaybackDeviceRegistrationException(cause: Throwable? = null) :
 /** Anonymous playback identity. Register once, then keep the same identity across repositories. */
 class PlaybackDeviceSession(
     /** 注册后的设备激活；默认不发请求，仅线上共享会话启用。 */
-    private val activate: (OkHttpClient, Map<String, String>, String) -> Unit = { _, _, _ -> },
+    private val activate: (OkHttpClient, Map<String, String>) -> Unit = { _, _ -> },
     private val register: (OkHttpClient) -> DeviceRegister.Registered? = { http ->
         val body = DeviceRegister.payload(VendorConstants.device)
         val request = Request.Builder().url(DeviceRegister.url())
@@ -137,7 +137,7 @@ class PlaybackDeviceSession(
     private fun activated(http: OkHttpClient, profile: Profile): Profile {
         runCatching {
             RequestScope.withDeadline(System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(1)) {
-                activate(http, profile.values, profile.cookie)
+                activate(http, profile.values)
             }
         }
         return profile
