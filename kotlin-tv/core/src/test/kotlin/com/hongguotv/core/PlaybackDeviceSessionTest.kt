@@ -30,6 +30,34 @@ class PlaybackDeviceSessionTest {
     }
 
     @Test
+    fun everyNewIdentityIsActivatedOnceAndActivationFailureIsIgnored() {
+        var count = 0
+        val activated = mutableListOf<String>()
+        val session = PlaybackDeviceSession(activate = { _, values, _ ->
+            activated += values.getValue("device_id")
+            throw IOException("activation unavailable")
+        }) { DeviceRegister.Registered((333 + ++count).toString(), "444") }
+        val http = OkHttpClient()
+        val initial = session.profile(http)
+        session.profile(http)
+        assertTrue(session.rotate(http, initial))
+        assertEquals(listOf("334", "335"), activated)
+    }
+
+    @Test
+    fun activationRequestCarriesTheRegisteredIdentity() {
+        val request = DeviceRegister.activation(
+            VendorConstants.device + mapOf("device_id" to "333", "iid" to "444", "cdid" to "c"), "install_id=444")
+        assertEquals("GET", request.method)
+        assertEquals("ichannel.snssdk.com", request.url.host)
+        assertEquals("/service/2/app_alert_check/", request.url.encodedPath)
+        assertEquals("333", request.url.queryParameter("device_id"))
+        assertEquals("444", request.url.queryParameter("iid"))
+        assertEquals("install_id=444", request.header("Cookie"))
+        assertNotNull(request.header("x-gorgon"))
+    }
+
+    @Test
     fun concurrentRotationsOfOneFailingProfileRegisterOnlyOneReplacement() {
         val registrations = AtomicInteger()
         val entered = CountDownLatch(1)

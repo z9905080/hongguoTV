@@ -204,6 +204,23 @@ object DeviceRegister {
     fun url() = HOST + PATH + QUERY
 
     /**
+     * 设备激活（`GET /service/2/app_alert_check/`）：官方 App 在注册后用新身份请求一次。
+     * 域名与旧注册路径 [DeviceRegistrar] 一致；[values] 须已含注册得到的 `device_id` / `iid`。
+     */
+    internal fun activation(values: Map<String, String>, cookie: String, signer: Signer = Signer(device = values)): okhttp3.Request {
+        val signed = signer.sign("https://ichannel.snssdk.com/service/2/app_alert_check/", values)
+        val request = okhttp3.Request.Builder().url(signed.url)
+        signed.headers.forEach { (key, value) -> request.header(key, value) }
+        if (cookie.isNotEmpty()) request.header("Cookie", cookie)
+        return request.build()
+    }
+
+    fun activate(http: okhttp3.OkHttpClient, values: Map<String, String>, cookie: String) {
+        val transport = http.newBuilder().cookieJar(okhttp3.CookieJar.NO_COOKIES).build()
+        RequestScope.execute(transport.newCall(activation(values, cookie))) { it.body?.bytes() }
+    }
+
+    /**
      * 解析注册响应。
      *
      * `device_id` / `install_id` 平台有时给数字、有时给字符串，两种都认； 全为 `0` 表示服务端拒了这次注册（body 形态或头不对），返回 null
